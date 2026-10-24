@@ -37,9 +37,13 @@ final class Discovery {
         new Thread(new Runnable() { public void run() {
             final Set<String> seen = new HashSet<String>();
             final String prefix = subnetPrefix(c);
-            WifiManager wm = (WifiManager) c.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-            WifiManager.MulticastLock lock = wm.createMulticastLock("omni");
-            lock.acquire();
+            // Multicast lock is optional (not permitted on Android 14+ in this build); never let it stop the scan
+            WifiManager.MulticastLock lock = null;
+            try {
+                WifiManager wm = (WifiManager) c.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                lock = wm.createMulticastLock("omni");
+                lock.acquire();
+            } catch (Throwable ignored) { lock = null; }
             try {
                 // 1) Xbox broadcast discovery (fast)
                 DatagramSocket s = new DatagramSocket();
@@ -65,7 +69,20 @@ final class Discovery {
                     ExecutorService pool = Executors.newFixedThreadPool(48);
                     for (int i = 1; i < 255; i++) {
                         final String ip = prefix + i;
-                        pool.execute(new Runnable() { public void run() {
+                        pool.execute(new Runnable() { public void run() { try { probePc(ip, seen, l); } catch (Throwable ignored) {} } });
+                    }
+                    pool.shutdown();
+                    pool.awaitTermination(20, TimeUnit.SECONDS);
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                try { if (lock != null && lock.isHeld()) lock.release(); } catch (Throwable ignored) {}
+                l.done();
+            }
+        }}).start();
+    }
+
+    private static void probePc(String ip, Set<String> seen, Listener l) {
                             if (!open(ip, 47989, 500)) return;
                             Host h = new Host();
                             h.type = "PC"; h.ip = ip; h.port = 47989; h.name = "Sunshine PC (" + ip + ")";
@@ -77,17 +94,6 @@ final class Discovery {
                             }
                             synchronized (seen) { if (!seen.add(ip)) return; }
                             l.found(h);
-                        }});
-                    }
-                    pool.shutdown();
-                    pool.awaitTermination(20, TimeUnit.SECONDS);
-                }
-            } catch (Exception ignored) {
-            } finally {
-                lock.release();
-                l.done();
-            }
-        }}).start();
     }
 
     private static boolean add(Set<String> seen, String ip) { synchronized (seen) { return seen.add(ip); } }

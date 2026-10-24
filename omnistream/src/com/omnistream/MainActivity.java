@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
         settings.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { showSettings(); } });
         header.addView(settings, new LinearLayout.LayoutParams(-2, Ui.dp(this, 44)));
         Button scanB = Ui.button(this, "Scan", Ui.CARD, Ui.ACCENT);
-        scanB.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { scan(); } });
+        scanB.setOnClickListener(new View.OnClickListener() { public void onClick(View v) { try { scan(); } catch (Throwable t) { Toast.makeText(MainActivity.this, "Scan failed: " + t, Toast.LENGTH_LONG).show(); } } });
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-2, Ui.dp(this, 44));
         slp.leftMargin = Ui.dp(this, 8);
         header.addView(scanB, slp);
