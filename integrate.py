@@ -10,11 +10,15 @@ def patch(path, old, new, count=1):
     open(path, "w", encoding="utf-8").write(s.replace(old, new, count))
 
 # 1. Sources and signing key
+# Works with the folder layout or with every file uploaded flat to the repo root
+src = "omnistream/src/com/omnistream" if os.path.isdir("omnistream/src/com/omnistream") else "."
+jks = "omnistream/omnistream.jks" if os.path.exists("omnistream/omnistream.jks") else "omnistream.jks"
 dst = f"{E}/src/main/java/com/omnistream"
 os.makedirs(dst, exist_ok=True)
-for f in os.listdir("omnistream/src/com/omnistream"):
-    shutil.copy(f"omnistream/src/com/omnistream/{f}", dst)
-shutil.copy("omnistream/omnistream.jks", f"{E}/omnistream.jks")
+for f in os.listdir(src):
+    if f.endswith(".java"):
+        shutil.copy(os.path.join(src, f), dst)
+shutil.copy(jks, f"{E}/omnistream.jks")
 
 # 2. Gradle: own app id + name (as Moonlight's author asks of forks), our signing key, lint off for release
 g = f"{E}/build.gradle"
